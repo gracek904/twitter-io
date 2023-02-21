@@ -1,0 +1,129 @@
+import pandas as pd
+import numpy as np
+import os
+import nltk
+nltk.download('punkt')
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.tokenize.treebank import TreebankWordDetokenizer
+import re                                  # library for regular expression operations
+import string                              # for string operations
+
+from nltk.corpus import stopwords          # module for stop words that come with NLTK
+from nltk.stem import PorterStemmer        # module for stemming
+from nltk.tokenize import TweetTokenizer   # module for tokenizing strings
+nltk.download('words')
+
+def contains_follow(tweet):
+    if "follow" in tweet or "following" in tweet or "followe" in tweet or "followed" in tweet:
+        return 1
+    else:
+        return 0
+        
+os.chdir('/Users/drishti/')
+df = pd.read_csv('russia_ira_feb_2021.csv')
+#df = pd.read_csv('iran_092020_tweets_csv_hashed.csv')
+df = df[df.tweet_language == 'en']
+df = df[df.is_retweet == 0]
+tweets_testing = df.tweet_text.to_list()
+
+def remove_hyperlinks_marks_styles(tweet):
+    
+    # remove old style retweet text "RT"
+    new_tweet = re.sub(r'^RT[\s]+', '', tweet)
+
+    # remove hyperlinks
+    new_tweet = re.sub(r'https?:\/\/.*[\r\n]*', '', new_tweet)
+
+    # remove hashtags
+    # only removing the hash # sign from the word
+    new_tweet = re.sub(r'#', '', new_tweet)
+    
+    return new_tweet
+
+tokenizer = TweetTokenizer(preserve_case=False, strip_handles=True,
+                               reduce_len=True)
+
+def tokenize_tweet(tweet):
+    
+    tweet_tokens = tokenizer.tokenize(tweet)
+    
+    return tweet_tokens
+    
+    
+nltk.download('stopwords')
+
+#Import the english stop words list from NLTK
+stopwords_english = stopwords.words('english')
+
+#additional_stopwords = ['rt', 'https','http', 'amp', '//', ':', 'fzzobtkolfsf', 'dqzx', 'chai', 'da', 'pzi', 'xus', 'idlib', 'faca', 'rac', 'sdf', 'hello', 'helo','follow', 'followed', 'following',
+#                       'hi', 'yes', 'ok', 'back', 'right', 'followe', 'kpuzrqe', 'please', 'pls','ykpuzrqe','lol']
+
+#additional_stopwords = ['rt',"@",'https','http', 'amp', '//', ':', 'fzzobtkolfsf', 'dqzx', 'chai', 'da', 'pzi', 'xus', 'idlib', 'faca', 'rac', 'sdf', 'hello', 'helo','follow', 'followed', 'following']
+
+additional_stopwords = ['rt', 'http', 'https', 'amp', '//']
+punctuations = string.punctuation
+
+def remove_stopwords_punctuations(tweet_tokens):
+    
+    tweets_clean = []
+    
+    for word in tweet_tokens:
+        if word in additional_stopwords:
+            continue
+        elif not word.isalpha():
+            continue
+        elif (word not in stopwords_english and word not in punctuations):
+            tweets_clean.append(word)
+            
+    return tweets_clean
+ 
+ stemmer = PorterStemmer()
+
+def get_stem(tweets_clean):
+    
+    tweets_stem = []
+    
+    for word in tweets_clean:
+        stem_word = stemmer.stem(word)
+        tweets_stem.append(stem_word)
+        
+    return tweets_stem
+
+def process_tweet(tweet):
+    
+    
+    processed_tweet = remove_hyperlinks_marks_styles(tweet)
+    tweet_tokens = tokenize_tweet(processed_tweet)
+    #tweets_tokens = tokenize_tweet(tweet)
+    tweets_clean = remove_stopwords_punctuations(tweet_tokens)
+    #tweets_stem = get_stem(tweets_clean)
+    
+    return tweets_clean
+ 
+tweets_final = []
+for tweet in tweets_testing:
+    if (contains_follow(tweet) == 0):
+        tweets_final.append(tweet)
+
+from bertopic import BERTopic
+
+topic_model = BERTopic()
+#topics, probs = topic_model.fit_transform(tweets_testing)
+topics, probs = topic_model.fit_transform(tweets_final)
+
+topic_model.get_topics()
+
+txt_file = open("racewords.txt", "r")
+file_content = txt_file.read()
+words = file_content.split()
+topic_model.find_topics(words, top_n = 50)
+
+topics_extracted = [139, 200, 276, 181, 130, 243, 67, 84, 119]
+#topic_model.visualize_barchart(top_n_topics = 10)
+topic_model.visualize_barchart(topics_extracted, width = 400, n_words = 5)
+#139, 200, 276, 181, 130, 243, 67, 84, 119
+
+topic_model.visualize_heatmap(topics_extracted)
+
+topic_model.visualize_heatmap(topics_extracted)
